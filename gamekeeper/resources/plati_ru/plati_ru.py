@@ -5,6 +5,7 @@ from gamekeeper.resources.resource import absResource
 
 
 class Plati(absResource):
+
     __metaclass__ = absResource
 
     __url = 'http://www.plati.com/api/search.ashx'

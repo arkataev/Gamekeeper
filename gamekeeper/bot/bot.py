@@ -57,6 +57,7 @@ def run(handler=None):
         updates = __update(offset=last_update_id)['result']
         if updates:
             last_update_id = updates[0]['update_id'] + 1
+            # TODO:: Предусмотреть обработку 'edited message'
             message = __get_message(updates[0]['message'])
             handler(message) if handler else print(updates)
         time.sleep(0.5)

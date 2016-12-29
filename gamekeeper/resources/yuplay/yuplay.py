@@ -1,8 +1,11 @@
 from lxml import html
 import requests
-from collections import namedtuple
 import re
+
+from collections import namedtuple
+from urllib.parse import urlencode
 from gamekeeper.resources.resource import absResource
+
 """
 [ 'addnext', 'addprevious', 'append', 'attrib', 'base', 'base_url', 'body', 'classes',
 'clear', 'cssselect', 'drop_tag', 'drop_tree', 'extend', 'find', 'find_class',
@@ -20,55 +23,59 @@ class YuPlay(absResource):
     __metaclass__ = absResource
 
     __url = 'http://yuplay.ru'
-    __current_page = 1
-    __total_pages = 1
-    __resources = []
-    __games = []
+    resourse_name = 'Yuplay.ru'
 
+    def __init__(self):
+
+        self.__games = []
+        self.__current_page = 1
+        self.__total_pages = 1
 
     def search(self, query):
-        Game = namedtuple("Game", ('name', 'link', 'price'))
-        clean_price = re.compile(r"\d+\s\d+|\d+")
+        resources = []
         while True:
             try:
-                content = self.__get_request(query, self.page)
+                content = self.__get_data(query, self.page)
                 doc = self.__build_doc_tree_from_content(content)
-                self.__resources.append(doc)
+                resources.append(doc)
                 self.page += 1
             except StopIteration:
                 break
-        for resource in self.__resources:
-            games_list = resource.body.find_class('games-box')[0]
-            self.games = [Game(
-                                name=child.xpath('a')[0].find('span').text.strip(),
-                                link=self.__url + child.xpath('a')[0].attrib['href'],
-                                price=clean_price.findall(child.find_class('price')[0].text_content()))
-                          for child in games_list.getchildren()]
+        for resource in resources:
+            try:
+                # html-блок со списком игр
+                games_list = resource.body.find_class('games-box')[0]
+            except IndexError:
+                # Ошибка если не удалось обнаружить блок с играми на странице результатов поиска
+                return 'Ничего найти не удалось:('
+            self.games.append(self.__collect_games(games_list))
         return self
+
+    def __collect_games(self, games_list):
+        Game = namedtuple("Game", ('name', 'link', 'price'))
+        price = re.compile(r"\d+\s\d+|\d+")
+        return [Game(
+            name=child.xpath('a')[0].find('span').text.strip(),
+            link=self.__url + child.xpath('a')[0].attrib['href'],
+            price=price.findall(child.find_class('price')[0].text_content()))
+         for child in games_list.getchildren()]
 
     def show_actions(self):
         return 'No actions available'
 
-    def __repr__(self):
-        info = "<b>Yuplay.ru:</b>\n"
-        for game in self.games:
-            try:
-                price = game.price[0].split()[1]
-            except IndexError:
-                price = game.price[0]
-            info+= "<a href='{}' target='_blank'>{}</a>- {}.руб\n".format(game.link, game.name, price)
-        return info
-
-    def __get_request(self, query, page):
+    def __get_data(self, query, page):
         suffix = '/products/search/'
         return requests.get(self.__url + suffix, headers={
             'user-aget':'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-        }, params={'query': query, 'page': page}).content
+        }, params=urlencode({'query': query, 'page': page})).content
 
     def __build_doc_tree_from_content(self, content):
         tree = html.fromstring(content)
         pagination = tree.body.find_class('pagination')
+        # Количество страниц результатов поиска.
+        # Определяется как количество абсолютных ссылок в пагинаторе, исключая 4 ссылки для относительной навигации
+        # (дальше, назад, первая, последнияя) << <| 1, 2, 3 |> >>
         self.total_pages = len(pagination[0].getchildren()) - 4 if pagination else 1
         return tree
 
@@ -94,8 +101,13 @@ class YuPlay(absResource):
     def games(self):
         return self.__games
 
-    @games.setter
-    def games(self, value):
-        if type(value).__name__ != 'list':
-            raise ValueError
-        self.__games = value
+    def __repr__(self):
+        info = "<b>{}</b>\n".format(self.resourse_name)
+        for page in self.games:
+            for game in page:
+                try:
+                    price = game.price[0].split()[1]
+                except IndexError:
+                    price = game.price[0]
+                info+= "<a href='{}' target='_blank'>{}</a> - {}руб.\n".format(game.link, game.name, price)
+        return info
