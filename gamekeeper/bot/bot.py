@@ -44,13 +44,14 @@ def __get_message(msg: dict) -> object:
         message = __get_message(error_msg)
     return message
 
-def command():
+def get_command(command_name):
     pass
 
+def __set_resource_command(resource):
+    pass
 
 def run(handler=None):
     print('Listening...')
-    print(info())
     last_update_id= None
     while True:
         updates = __update(offset=last_update_id)['result']

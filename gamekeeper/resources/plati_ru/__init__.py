@@ -1,0 +1,1 @@
+from .plati_ru import Plati
