@@ -53,11 +53,11 @@ class YuPlay(absResource):
 
     def __collect_games(self, games_list):
         Game = namedtuple("Game", ('name', 'link', 'price'))
-        price = re.compile(r"\d+\s\d+|\d+")
+        clean_price = re.compile(r"\d+\s\d+|\d+")
         return [Game(
             name=child.xpath('a')[0].find('span').text.strip(),
             link=self.__url + child.xpath('a')[0].attrib['href'],
-            price=price.findall(child.find_class('price')[0].text_content()))
+            price=clean_price.findall(child.find_class('price')[0].text_content()))
          for child in games_list.getchildren()]
 
     def show_actions(self):
