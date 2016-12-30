@@ -6,27 +6,24 @@ from collections import namedtuple
 from urllib.parse import urlencode
 from gamekeeper.resources.resource import absResource
 
-"""
-[ 'addnext', 'addprevious', 'append', 'attrib', 'base', 'base_url', 'body', 'classes',
-'clear', 'cssselect', 'drop_tag', 'drop_tree', 'extend', 'find', 'find_class',
-'find_rel_links', 'findall', 'findtext', 'forms', 'get', 'get_element_by_id',
-'getchildren', 'getiterator', 'getnext', 'getparent', 'getprevious', 'getroottree',
-'head', 'index', 'insert', 'items', 'iter', 'iterancestors', 'iterchildren',
-'iterdescendants', 'iterfind', 'iterlinks', 'itersiblings', 'itertext',
-'keys', 'label', 'make_links_absolute', 'makeelement', 'nsmap', 'prefix',
- 'remove', 'replace', 'resolve_base_href', 'rewrite_links', 'set', 'sourceline',
- 'tag', 'tail', 'text', 'text_content', 'values', 'xpath']
-"""
+# """
+# [ 'addnext', 'addprevious', 'append', 'attrib', 'base', 'base_url', 'body', 'classes',
+# 'clear', 'cssselect', 'drop_tag', 'drop_tree', 'extend', 'find', 'find_class',
+# 'find_rel_links', 'findall', 'findtext', 'forms', 'get', 'get_element_by_id',
+# 'getchildren', 'getiterator', 'getnext', 'getparent', 'getprevious', 'getroottree',
+# 'head', 'index', 'insert', 'items', 'iter', 'iterancestors', 'iterchildren',
+# 'iterdescendants', 'iterfind', 'iterlinks', 'itersiblings', 'itertext',
+# 'keys', 'label', 'make_links_absolute', 'makeelement', 'nsmap', 'prefix',
+#  'remove', 'replace', 'resolve_base_href', 'rewrite_links', 'set', 'sourceline',
+#  'tag', 'tail', 'text', 'text_content', 'values', 'xpath']
+# """
 
 class YuPlay(absResource):
 
-    __metaclass__ = absResource
-
     __url = 'http://yuplay.ru'
-    resourse_name = 'Yuplay.ru'
+    __resource_name = 'Yuplay.ru'
 
     def __init__(self):
-
         self.__games = []
         self.__current_page = 1
         self.__total_pages = 1
@@ -80,6 +77,10 @@ class YuPlay(absResource):
         return tree
 
     @property
+    def resource_name(self):
+        return self.__resource_name
+
+    @property
     def page(self):
         return self.__current_page
 
@@ -102,7 +103,7 @@ class YuPlay(absResource):
         return self.__games
 
     def __repr__(self):
-        info = "<b>{}</b>\n".format(self.resourse_name)
+        info = "<b>{}</b>\n".format(self.resource_name)
         for page in self.games:
             for game in page:
                 try:

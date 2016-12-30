@@ -44,10 +44,13 @@ def __get_message(msg: dict) -> object:
         message = __get_message(error_msg)
     return message
 
-def get_command(command_name):
+def get_keyboard():
     pass
 
-def __set_resource_command(resource):
+def get_command(msg):
+    pass
+
+def set_resource_command(resource):
     pass
 
 def run(handler=None):

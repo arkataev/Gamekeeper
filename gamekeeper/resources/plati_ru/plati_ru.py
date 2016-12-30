@@ -1,53 +1,80 @@
 import requests
 import re
-from operator import itemgetter
+from operator import attrgetter
 from gamekeeper.resources.resource import absResource
-
+from collections import namedtuple
 
 class Plati(absResource):
 
-    __metaclass__ = absResource
-
     __url = 'http://www.plati.com/api/search.ashx'
+    __resource_name = 'Plati.ru'
+    __rating = 200
+
+    def __init__(self):
+        self.__games = []
+        self.__current_page = 1
+        self.__sellers = []
 
     def search(self, query):
-        # Словарь с результатами поиска
-        sellers = {}
-        # Паттерн на поиск
-        _regex_search = self.__key_words(query)
-        # Паттерн на исключение
-        _regex_except = self.__excluded_words(['ps3', 'ps4', 'xbox'])
-        # Фильтруем продавцов по критериям качества
-        good_sellers = filter(self.__is_good_seller, self.__get_sellers(query))
-        # Среди отобранных продавцов выбираем предложения, которые соответствуют запросу
-        matched_good_sellers = filter(lambda seller:
-                                      not _regex_except.search(seller['name'])
-                                      and _regex_search.search(seller['name']), good_sellers)
-        # Группируем полученные данные по продавцу
-        for good_seller in matched_good_sellers:
-            sellers.setdefault(good_seller['seller_name'], []).append((good_seller['name'],
-                                                                       good_seller['price_rur'],
-                                                                       good_seller['url']))
-        # Сортируем продавцов по цене самого дешевого товара в их списке и возвращаем генератор
-        return (self.__print_goods(seller, goods) for seller, goods in sorted(sellers.items(), key=Plati.__sort_by_price))
+        # Результаты поиска
+        found_games = self.__get_sellers(query)
+        if not found_games:
+            return 'Ничего найти не удалось:('
 
-    @staticmethod
-    def __sort_by_price(goods):
+        # Модель записи игры для удобного хранения
+        Game = namedtuple("Game", ('name', 'link', 'price'))
+        # Паттерн на поиск товара по ключевом слову
+        regex_search = self.__key_words(query)
+        # Паттерн на исключение товара из поиска
+        regex_except = self.__excluded_words(['ps3', 'ps4', 'xbox'])
+        # Фильтруем найденные товары по критериям
+        matched_good_sellers = self.__filter_sellers([
+            lambda seller: not regex_except.search(seller['name']) and regex_search.search(seller['name']),
+            self.__is_good_seller
+        ], found_games)
+        # Группируем полученные товары по продавцу
+        sellers_dict= {}
+        for good_seller in matched_good_sellers:
+            sellers_dict.setdefault(good_seller['seller_name'], []).append(Game(name=good_seller['name'],
+                                                                                price=good_seller['price_rur'],
+                                                                                link=good_seller['url']))
+        # Добавляем каждого продавца и его игры в общий список продавцов
+        for seller in sellers_dict:
+            self.sellers.append({'seller_name': seller, 'games': sorted(sellers_dict[seller], key=attrgetter('price'))})
+        # Сортируем продавцов в общем списке по цене самой дешевой игры имеющейся у продавца
+        self.sellers.sort(key=lambda seller: seller['games'][0].price)
+
+        return self
+
+    def __filter_sellers(self, rules, sellers):
         """
-        Возвращает самую низкую цену среди товаров продавца
-        :param goods:
-        :type goods: list
-        :return:
+        Рекурсивно применяет правила для фильтрации объектов в списке. Результат фильтрации первого
+        правила является входящим списком для фильтрации по второму правилу и т.д.
+
+        :param rules:       Список функций применяемых для фильтрации
+        :param sellers:     Список, который нужно отфильтровать
+        :return:            Отфильтрованный список
         """
-        # Создаем оператор для получения элементов из списков
-        getter = itemgetter(1)
-        # список кортежей с товарами продавца
-        seller_goods = getter(goods)
-        # сортируем товары продавца по возрастанию цены
-        # TODO:: Заменить на min()
-        seller_goods.sort(key=getter)
-        # возвращаем оператор с ценой самого дешевого товара у продавца для использования при сортировке
-        return getter(seller_goods[0])
+        f_sellers = filter(rules[0], sellers)
+        return f_sellers if len(rules) == 1 else self.__filter_sellers(rules[1:], f_sellers)
+
+    @property
+    def resource_name(self):
+        return self.__resource_name
+
+    @property
+    def sellers(self):
+        return self.__sellers
+
+    @property
+    def rating(self):
+        return int(self.__rating)
+
+    @rating.setter
+    def rating(self, value):
+        if not str(value).isdigit():
+            raise ValueError('Rating should be an integer')
+        self.__rating = value
 
     @staticmethod
     def __excluded_words(words):
@@ -59,13 +86,6 @@ class Plati(absResource):
         _query_regex = ['({})'.format(word) for word in str(query).split(' ')]
         return re.compile("{}".format(r'.*?\b'.join(_query_regex)), re.IGNORECASE)
 
-    @staticmethod
-    def __print_goods(seller, goods):
-        info = "<b>{}:</b> \n".format(seller)
-        for good in goods:
-            info += "<a href='{}' target='_blank'>{}</a>- {}.руб\n".format(good[2], good[0], good[1])
-        return info
-
     def __get_sellers(self, query):
         page = items = 1
         sellers = []
@@ -76,12 +96,18 @@ class Plati(absResource):
             page += 1
         return sellers
 
-    @staticmethod
-    def __is_good_seller(seller):
+    def __is_good_seller(self, seller):
         params = {
             'count_negativeresponses': lambda i: not i,
             'count_returns': lambda i: not i,
-            'seller_rating': lambda i: int(i) >= 200,
+            'seller_rating': lambda i: int(i) >= self.rating,
         }
-
         return all([params[param](seller[param]) for param in params.keys()])
+
+    def __repr__(self):
+        info = "<b>{}</b>\n".format(self.resource_name)
+        for seller in self.sellers:
+            info += "<b>{}</b>\n".format(seller['seller_name'])
+            for game in seller['games']:
+                info += "<a href='{}' target='_blank'>{}</a> - {}руб.\n".format(game.link, game.name, game.price)
+        return info
