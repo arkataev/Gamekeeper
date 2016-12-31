@@ -2,6 +2,7 @@ from gamekeeper.bot import bot
 from gamekeeper.resources.plati_ru import Plati
 from gamekeeper.resources.yuplay import YuPlay
 
+
 def bot_msg_handler(msg):
     # Пользователь с помощью команды боту выбирает ресурс для поиска (ресурс выбирать на интерактивной клавиатуре)
     # Бот получает в сообщении от пользователя строку для поиска

@@ -3,7 +3,7 @@ import time
 from collections import namedtuple
 
 
-__token = '324178536:AAHMpH0ldMKHwlRvnffjifcoPNVPrNhmYvc'
+__token = open('../.env').readline().split('=')[1].strip()
 __telegram_api = {
     'INFO': 'https://api.telegram.org/bot{}/getme',
     'UPDATES': 'https://api.telegram.org/bot{}/getUpdates',
@@ -44,13 +44,13 @@ def __get_message(msg: dict) -> object:
         message = __get_message(error_msg)
     return message
 
-def get_keyboard():
+def __get_keyboard():
     pass
 
-def get_command(msg):
+def __get_command(msg):
     pass
 
-def set_resource_command(resource):
+def __set_resource_command(resource):
     pass
 
 def run(handler=None):
