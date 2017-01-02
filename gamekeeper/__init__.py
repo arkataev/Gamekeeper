@@ -1,21 +1,27 @@
 from gamekeeper.bot import bot
 from gamekeeper.resources.plati_ru import Plati
 from gamekeeper.resources.yuplay import YuPlay
+import time
 
+def default_handler(msg):
+    if bot.is_command(msg):
+        command = bot.get_command(msg.text)
+        return bot.send_message(command.message, msg.chat['id'], keyboard=command.keyboard(command.name))
+    if msg.chat_instance:
+        callback_result = bot.execute_callback(msg)
+        return bot.answer_callback(callback_result)
 
-def bot_msg_handler(msg):
-    # Пользователь с помощью команды боту выбирает ресурс для поиска (ресурс выбирать на интерактивной клавиатуре)
-    # Бот получает в сообщении от пользователя строку для поиска
-    # Отправляет запрос в метод search выбранного ресурса
-    # Получает результат поиска и отправляет в ответе пользователю
+    if getattr(bot.resource, 'rating', False):
+        bot.resource.rating = 200
+    start_time = time.time()
+    result = str(bot.resource.search(msg.text))
+    if len(result) > 5000:
+        for chunk in bot.chunk_string(result):
+            bot.send_message(chunk, msg.chat['id'], parse_mode='HTML')
+    else:
+        bot.send_message(result, msg.chat['id'], parse_mode='HTML')
 
-    # Получить из сообщения команду
-    # Если команда - resource, вернуть клавиатуру с выбором варианта ресурсов
+    print(len(result))
+    print("--- {} seconds ---".format(time.time() - start_time))
 
-    resource = Plati()
-    if getattr(resource, 'rating', False):
-        resource.rating = 200
-    result = resource.search(msg.text)
-    bot.send(str(result), msg.chat['id'], parse_mode='HTML')
-
-bot.run(bot_msg_handler)
+bot.run(default_handler)

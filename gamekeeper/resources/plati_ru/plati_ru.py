@@ -11,7 +11,6 @@ class Plati(absResource):
     __rating = 200
 
     def __init__(self):
-        self.__games = []
         self.__current_page = 1
         self.__sellers = []
 
@@ -86,13 +85,19 @@ class Plati(absResource):
         _query_regex = ['({})'.format(word) for word in str(query).split(' ')]
         return re.compile("{}".format(r'.*?\b'.join(_query_regex)), re.IGNORECASE)
 
+    def get_options(self):
+        return {
+            'set_rating': self.rating
+        }
+
+
     def __get_sellers(self, query):
         page = items = 1
         sellers = []
         while items:
             r = requests.get(self.__url, params={'query': query, 'response': 'json', 'pagenum': page})
             items = r.json()['items']
-            sellers.extend(items)
+            if items: sellers.extend(items)
             page += 1
         return sellers
 
@@ -110,5 +115,5 @@ class Plati(absResource):
             info += "<b>{}</b>\n".format(seller['seller_name'])
             for game in seller['games']:
                 info += "<a href='{}' target='_blank'>{}</a> - {}руб.\n".format(game.link, game.name, game.price)
-            info += "=" * 57 +"\n"
+            info += "=" * 57 +"\t\n"
         return info

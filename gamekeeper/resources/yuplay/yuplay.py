@@ -6,18 +6,6 @@ from collections import namedtuple
 from urllib.parse import urlencode
 from gamekeeper.resources.resource import absResource
 
-# """
-# [ 'addnext', 'addprevious', 'append', 'attrib', 'base', 'base_url', 'body', 'classes',
-# 'clear', 'cssselect', 'drop_tag', 'drop_tree', 'extend', 'find', 'find_class',
-# 'find_rel_links', 'findall', 'findtext', 'forms', 'get', 'get_element_by_id',
-# 'getchildren', 'getiterator', 'getnext', 'getparent', 'getprevious', 'getroottree',
-# 'head', 'index', 'insert', 'items', 'iter', 'iterancestors', 'iterchildren',
-# 'iterdescendants', 'iterfind', 'iterlinks', 'itersiblings', 'itertext',
-# 'keys', 'label', 'make_links_absolute', 'makeelement', 'nsmap', 'prefix',
-#  'remove', 'replace', 'resolve_base_href', 'rewrite_links', 'set', 'sourceline',
-#  'tag', 'tail', 'text', 'text_content', 'values', 'xpath']
-# """
-
 class YuPlay(absResource):
 
     __url = 'http://yuplay.ru'
