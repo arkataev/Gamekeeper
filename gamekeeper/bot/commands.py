@@ -1,10 +1,12 @@
 from abc import ABCMeta, abstractmethod
 
+
 class BotCommand(metaclass=ABCMeta):
 
     @abstractmethod
     def execute(self, message):
         pass
+
 
 class ChangeBotResourceCommand(BotCommand):
 

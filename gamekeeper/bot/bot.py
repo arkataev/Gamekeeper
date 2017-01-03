@@ -2,7 +2,6 @@ import requests
 import time
 import json
 from collections import namedtuple
-from gamekeeper.resources.resource import absResource
 from gamekeeper.bot.commands import BotCommand
 
 
