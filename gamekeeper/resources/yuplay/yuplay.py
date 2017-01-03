@@ -9,7 +9,7 @@ from gamekeeper.resources.resource import absResource
 class YuPlay(absResource):
 
     __url = 'http://yuplay.ru'
-    __resource_name = 'Yuplay.ru'
+    resource_name = 'Yuplay.ru'
 
     def __init__(self):
         self.__games = []
@@ -18,6 +18,7 @@ class YuPlay(absResource):
 
     def search(self, query):
         resources = []
+        if self.games: self.games = []
         while True:
             try:
                 content = self.__get_data(query, self.page)
@@ -68,10 +69,6 @@ class YuPlay(absResource):
         return 'No options available'
 
     @property
-    def resource_name(self):
-        return self.__resource_name
-
-    @property
     def page(self):
         return self.__current_page
 
@@ -93,6 +90,10 @@ class YuPlay(absResource):
     def games(self):
         return self.__games
 
+    @games.setter
+    def games(self, value):
+        self.__games = value
+
     def __repr__(self):
         info = "<b>{}</b>\n".format(self.resource_name)
         for page in self.games:
@@ -101,5 +102,5 @@ class YuPlay(absResource):
                     price = game.price[0].split()[1]
                 except IndexError:
                     price = game.price[0]
-                info+= "<a href='{}' target='_blank'>{}</a> - {}руб.\n".format(game.link, game.name, price)
+                info+= "<a href='{}' target='_blank'>{}</a> - {}руб.\n\t".format(game.link, game.name, price)
         return info

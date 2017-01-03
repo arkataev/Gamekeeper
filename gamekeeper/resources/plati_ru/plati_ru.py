@@ -7,7 +7,7 @@ from collections import namedtuple
 class Plati(absResource):
 
     __url = 'http://www.plati.com/api/search.ashx'
-    __resource_name = 'Plati.ru'
+    resource_name = 'Plati.ru'
     __rating = 200
 
     def __init__(self):
@@ -58,9 +58,7 @@ class Plati(absResource):
         f_sellers = filter(rules[0], sellers)
         return f_sellers if len(rules) == 1 else self.__filter_sellers(rules[1:], f_sellers)
 
-    @property
-    def resource_name(self):
-        return self.__resource_name
+
 
     @property
     def sellers(self):
