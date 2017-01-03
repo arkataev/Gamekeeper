@@ -4,7 +4,6 @@ import json
 from collections import namedtuple
 from gamekeeper.bot.commands import BotCommand
 
-
 class Bot:
     """
     Класс бота для Телеграмма. Бот по запросу пользователя ищет игры на
@@ -20,7 +19,7 @@ class Bot:
     # Активный ресурс, где будет производится поиск игры
     __active_resource = None
     # токен бота
-    __token = open('../.env').readline().split('=')[1].strip()
+    __token = None
     # Основные интерфейсы Телеграма
     __telegram_api = {
         'INFO': 'https://api.telegram.org/bot{}/getme',
@@ -29,7 +28,7 @@ class Bot:
         'CALLBACK': 'https://api.telegram.org/bot{}/answerCallbackQuery'
     }
 
-    def __init__(self, resources:list, commands:list=None):
+    def __init__(self, token, resources:list, commands:list=None):
         """
         Бот принимает в качестве параметров список ресурсов и
         список команд
@@ -38,6 +37,7 @@ class Bot:
         """
         self.resources = resources
         self.commands = commands
+        self.__token = token
         # По умолчанию бот будет использовать первый ресурс в списке для поиска игры
         self.active_resource = resources[0].resource_name
 

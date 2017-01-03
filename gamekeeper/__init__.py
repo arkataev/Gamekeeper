@@ -1,4 +1,5 @@
 import time
+import os
 from gamekeeper.bot.bot import Bot
 from gamekeeper.resources.plati_ru import Plati
 from gamekeeper.resources.yuplay import YuPlay
@@ -6,8 +7,11 @@ from gamekeeper.bot.commands import (ChangeBotResourceCommand,
                                      ChangeBotResourceOptionsCommand,
                                      GetHelpCommand)
 
+# Токен для бота в телеграмм
+token = open(os.getcwd() + '/gamekeeper/.env').readline().split('=')[1].strip()
 
-bot = Bot(resources=[Plati, YuPlay], commands=[
+# Экземпляр бота
+bot = Bot(token, resources=[Plati, YuPlay], commands=[
     ChangeBotResourceCommand,
     ChangeBotResourceOptionsCommand,
     GetHelpCommand

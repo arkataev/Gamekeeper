@@ -26,7 +26,6 @@ class ChangeBotResourceCommand(BotCommand):
                          message.chat['id'],
                          keyboard=self.keyboard)
         else:
-            print(message.data)
             # обработать информацию из колбэк-параметров
             self.bot.active_resource = message.data
             self.bot.send_message('Ресурс успешно изменен! Текущий русурс: {}'.format(self.bot.active_resource.resource_name),
@@ -93,4 +92,5 @@ class GetHelpCommand(BotCommand):
         self.bot = bot
 
     def execute(self, message):
-        return
+        self.bot.send_message('Опция временно недоступна!', message.chat['id'])
+        self.bot.active_command = False
