@@ -15,6 +15,7 @@ class Plati(absResource):
         self.__sellers = []
 
     def search(self, query):
+        if self.sellers: self.sellers = []
         # Результаты поиска
         found_games = self.__get_sellers(query)
         if not found_games:
@@ -65,6 +66,10 @@ class Plati(absResource):
     def sellers(self):
         return self.__sellers
 
+    @sellers.setter
+    def sellers(self, value):
+        self.__sellers = value
+
     @property
     def rating(self):
         return int(self.__rating)
@@ -87,9 +92,8 @@ class Plati(absResource):
 
     def get_options(self):
         return {
-            'set_rating': self.rating
+            'set_rating': self
         }
-
 
     def __get_sellers(self, query):
         page = items = 1

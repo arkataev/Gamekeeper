@@ -6,13 +6,15 @@ from gamekeeper.resources.plati_ru import Plati
 from gamekeeper.resources.yuplay import YuPlay
 
 
+
 # Словарь ресурсов
 __resources = {'plati.ru': Plati, 'yuplay.ru': YuPlay}
-
-__user_input = False
-
+# Ресурс для поиска игры (по умолчанию - Плати.ру)
+resource = Plati()
+# Активная команда для бота
+active_command = None
 # Структура данных команды для бота
-Command = namedtuple('Command', ['name', 'command', 'message', 'keyboard'])
+Command = namedtuple('Command', ['name', 'command', 'keyboard', 'user_input'])
 
 def get_resource(resource_name=None):
     """
@@ -20,12 +22,13 @@ def get_resource(resource_name=None):
     :param resource_name:
     :return:
     """
-    return __resources.get(resource_name, __resources['plati.ru'])
+    resource = __resources.get(resource_name, __resources['plati.ru'])
+    return resource()
 
-# TODO:: Сделать декоратор для ввода произвольного значения пользователем
-def change_resource_options_command(option):
+def change_resource_option_command(option):
     print(option)
-    r = resource.get_options()['option']
+    resource_option = resource.get_options()[option]
+    print(resource_option)
     return "Укажите значение опции: ..."
 
 def get_command(command_name):
@@ -36,15 +39,22 @@ def get_command(command_name):
     """
     return __commands.get(command_name)
 
-def change_resource_command(resource_name):
-    """
-    Переопределяет текущий ресурс
-    :param resource_name: название ресурса
-    :return:
-    """
+def change_resource_command(msg):
     global resource
-    resource = get_resource(resource_name)()
-    return 'Ресурс успешно изменен! Текущий русурс: {}'.format(resource.resource_name)
+    global active_command
+    if not is_callback(msg):
+        # Отправить пользователю клавиатуру, чтобы получить от него колбэк-параметр
+        send_message('Текущий ресурс: {}. Выберите ресурс'.format(resource.resource_name),
+                     msg.chat['id'],
+                     keyboard=active_command.keyboard(active_command.name))
+    else:
+        # обработать информацию из колбэк-параметров
+        data = json.loads(msg.data)
+        resource_name = data['command_value']
+        resource = get_resource(resource_name)
+        send_message('Ресурс успешно изменен! Текущий русурс: {}'.format(resource.resource_name),
+                       msg.message['chat']['id'])
+        active_command = False
 
 def get_keyboard(command_name):
     """
@@ -60,15 +70,14 @@ def get_keyboard(command_name):
                     'callback_data': json.dumps( # строка данных, которые передаются в теле ответа после нажатия кнопки
                         {'command_name': command_name, 'command_value': name})
                 }] for name in __resources ],    # Клавиатура состоит из списка списков кнопок
-        'help': None,
         'options': [[{'text': option, 'callback_data': json.dumps({
             'command_name': command_name, 'command_value': option
         })}] for option in resource.get_options()]
     }
     return keyboards.get(command_name)
 
-def get_help_command():
-    return 'Помощь уже в пути!'
+def get_help_command(params=None):
+    return 'Помогаю всем!'
 
 def info():
     return requests.get(__telegram_api.get('INFO').format(__token)).json()
@@ -106,16 +115,47 @@ def send_message(message, chat_id, parse_mode=None, reply_id=None, disable_web_p
     }
 
 @__send('CALLBACK')
-def answer_callback(answer):
+def send_callback(answer):
     return {
         'callback_query_id' : answer['id'],
         'text': answer['message']
     }
 
-def execute_callback(callback):
-    data = json.loads(callback.data)
-    message = __commands.get('/' + data['command_name']).command(data['command_value'])
-    return {'message': message, 'id': callback.id}
+def execute(msg):
+    global active_command
+    if is_command(msg): active_command = get_command(msg.text)
+    try:
+        active_command.command(msg)
+    except AttributeError as e:
+        print(e)
+    #     if active_command.keyboard:
+    #         # Отправить пользователю клавиатуру для получения параметров выполнения команды
+    #         send_message(active_command.message, msg.chat['id'], keyboard=active_command.keyboard(active_command.name))
+    #     else:
+    #         # Отправить пользователю результат выполнения команды
+    #         send_message(active_command.command(msg), msg.chat['id'])
+    #         # Если ввод данных от пользователя не требутся отключить активную команду
+    #         if not active_command.user_input: active_command = False
+    # elif is_callback(msg):
+    #     data = json.loads(msg.data)
+    #     # Выполнить команду с использованием данных из инлайн-запроса
+    #     message = active_command.command(data['command_value'])
+    #     # Ответить пользователю уведомлением
+    #     send_callback({'message': message, 'id': msg.id})
+    # else:
+    #     # Выполнить команду с ипользованием данных введенных пользователем и ответить пользователю сообщением
+    #     send_message(active_command.command(msg), msg.chat['id'])
+    #     # Выключить активную команду
+    #     active_command = False
+    # return True
+
+def is_callback(msg):
+    return getattr(msg, 'chat_instance', False)
+
+
+# def execute_callback(callback):
+#     data = json.loads(callback.data)
+#     return {'message': message, 'id': callback.id}
 
 def __get_message(msg: dict) -> namedtuple:
     """
@@ -178,17 +218,11 @@ __telegram_api = {
     'CALLBACK': 'https://api.telegram.org/bot{}/answerCallbackQuery'
 }
 
-# Текущий ресурс для поиска игры
-resource = get_resource()()
+
 
 # Словарь команд
 __commands = {
-    '/resource': Command(name='resource', command=change_resource_command,
-                         message='Текущий ресурс: {}. Выберите ресурс'.format(resource.resource_name),
-                         keyboard=get_keyboard),
-    '/help': Command(name='help', command=get_help_command,
-                     message='Помощь уже в пути',
-                     keyboard=get_keyboard),
-    '/options': Command(name='options', command=change_resource_options_command,
-                        message='Опции', keyboard=get_keyboard)
+    '/resource': Command(name='resource', command=change_resource_command,keyboard=get_keyboard, user_input=False),
+    '/help': Command(name='help', command=get_help_command, keyboard=get_keyboard, user_input=False),
+    '/options': Command(name='options', command=change_resource_option_command, keyboard=get_keyboard, user_input=True)
 }

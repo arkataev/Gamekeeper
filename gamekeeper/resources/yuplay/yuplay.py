@@ -64,6 +64,9 @@ class YuPlay(absResource):
         self.total_pages = len(pagination[0].getchildren()) - 4 if pagination else 1
         return tree
 
+    def get_options(self):
+        return 'No options available'
+
     @property
     def resource_name(self):
         return self.__resource_name
