@@ -1,7 +1,7 @@
 import requests
 import re
 from operator import attrgetter
-from gamekeeper.resources.resource import absResource
+from gamekeeper.resources.resource import absResource, Option
 from collections import namedtuple
 
 class Plati(absResource):
@@ -43,7 +43,6 @@ class Plati(absResource):
             self.sellers.append({'seller_name': seller, 'games': sorted(sellers_dict[seller], key=attrgetter('price'))})
         # Сортируем продавцов в общем списке по цене самой дешевой игры имеющейся у продавца
         self.sellers.sort(key=lambda seller: seller['games'][0].price)
-
         return self
 
     def __filter_sellers(self, rules, sellers):
@@ -58,39 +57,10 @@ class Plati(absResource):
         f_sellers = filter(rules[0], sellers)
         return f_sellers if len(rules) == 1 else self.__filter_sellers(rules[1:], f_sellers)
 
-
-
-    @property
-    def sellers(self):
-        return self.__sellers
-
-    @sellers.setter
-    def sellers(self, value):
-        self.__sellers = value
-
-    @property
-    def rating(self):
-        return int(self.__rating)
-
-    @rating.setter
-    def rating(self, value):
-        if not str(value).isdigit():
-            raise ValueError('Rating should be an integer')
-        self.__rating = value
-
-    @staticmethod
-    def __excluded_words(words):
-        regex = '|'.join(words)
-        return re.compile(r".*({})".format(regex), re.IGNORECASE)
-
-    @staticmethod
-    def __key_words(query):
-        _query_regex = ['({})'.format(word) for word in str(query).split(' ')]
-        return re.compile("{}".format(r'.*?\b'.join(_query_regex)), re.IGNORECASE)
-
     def get_options(self):
         return {
-            'set_rating': self
+            'set_rating': Option(name='Рейтинг продавца', value=lambda r: setattr(self, 'rating', r),
+                                 message='Введите число от 0 до 1000')
         }
 
     def __get_sellers(self, query):
@@ -119,3 +89,31 @@ class Plati(absResource):
                 info += "<a href='{}' target='_blank'>{}</a> - {}руб.\n".format(game.link, game.name, game.price)
             info += "=" * 57 +"\t\n"
         return info
+
+    @staticmethod
+    def __excluded_words(words):
+        regex = '|'.join(words)
+        return re.compile(r".*({})".format(regex), re.IGNORECASE)
+
+    @staticmethod
+    def __key_words(query):
+        _query_regex = ['({})'.format(word) for word in str(query).split(' ')]
+        return re.compile("{}".format(r'.*?\b'.join(_query_regex)), re.IGNORECASE)
+
+    @property
+    def sellers(self):
+        return self.__sellers
+
+    @property
+    def rating(self):
+        return int(self.__rating)
+
+    @sellers.setter
+    def sellers(self, value):
+        self.__sellers = value
+
+    @rating.setter
+    def rating(self, value):
+        assert str(value).isdigit(), ValueError('Значение рейтинга должно быть числом')
+        assert 0 < int(value) < 1000, ValueError('Значение должно быть между 0 и 1000')
+        self.__rating = value

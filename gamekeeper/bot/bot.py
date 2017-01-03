@@ -3,20 +3,24 @@ import time
 import json
 from collections import namedtuple
 from gamekeeper.resources.resource import absResource
-
+from gamekeeper.bot.commands import BotCommand
 
 
 class Bot:
+    """
+    Класс бота для Телеграмма. Бот по запросу пользователя ищет игры на
+    доступных торговых площадках, а также может выполнять другие команды
+    """
 
     # Доступные ресурсы для поиска игры
     __resources = {}
     # Доступные команды бота
     __commands = None
-    # Активная комманда бота
+    # Активная команда, которая выполняется в данный момент
     __active_command = None
-    # Активный ресурс для поиск игры
+    # Активный ресурс, где будет производится поиск игры
     __active_resource = None
-    # токен Бота
+    # токен бота
     __token = open('../.env').readline().split('=')[1].strip()
     # Основные интерфейсы Телеграма
     __telegram_api = {
@@ -26,10 +30,17 @@ class Bot:
         'CALLBACK': 'https://api.telegram.org/bot{}/answerCallbackQuery'
     }
 
-    def __init__(self, resources, commands=None):
+    def __init__(self, resources:list, commands:list=None):
+        """
+        Бот принимает в качестве параметров список ресурсов и
+        список команд
+        :param resources:
+        :param commands:
+        """
         self.resources = resources
         self.commands = commands
-        self.active_resource = resources[0].resource_name # По умолчанию использовать первый ресурс в списке
+        # По умолчанию бот будет использовать первый ресурс в списке для поиска игры
+        self.active_resource = resources[0].resource_name
 
     @property
     def active_resource(self):
@@ -49,14 +60,12 @@ class Bot:
 
     @commands.setter
     def commands(self, commands_list):
-        self.__commands = {command.id:command for command in commands_list}
+        self.__commands = {command.id:command for command in commands_list if issubclass(command, BotCommand)}
 
     @resources.setter
     def resources(self, resources_list):
-        if resources_list:
-            for resource in resources_list:
-                assert issubclass(resource, absResource), 'Resource is not an absResource subclass'
-                self.resources[resource.resource_name.lower()] = resource
+        for resource in resources_list:
+            self.resources[resource.resource_name.lower()] = resource
 
     @active_resource.setter
     def active_resource(self, resource_name):
@@ -64,19 +73,32 @@ class Bot:
 
     @active_command.setter
     def active_command(self, command):
-        # assert command is Command, 'Command is not an absCommand subclass'
         self.__active_command = command
 
-    def __update(self, offset=None, timeout=100):
+    def __update(self, offset:int=None, timeout=100, allowed_updates:list=None):
+        """
+        Запрос к API-телеграмма для получения очереди сообщений
+
+        :param offset: Identifier of the first update to be returned.
+        Must be greater by one than the highest among the identifiers of previously received updates.
+        By default, updates starting with the earliest unconfirmed update are returned.
+        An update is considered confirmed as soon as getUpdates is called with an offset higher than its update_id.
+        The negative offset can be specified to retrieve updates starting from -offset update from the end of the
+        updates queue. All previous updates will forgotten.
+        :param timeout: Limits the number of updates to be retrieved. Values between 1—100 are accepted. Defaults to 100.
+        :type offset: int
+        :type allowed_updates: list
+        :return:
+        """
         return requests.get(self.__telegram_api.get('UPDATES').format(self.__token), params={
             'offset': offset,
-            'timeout': timeout
+            'timeout': timeout,
+            'allowed_updates': allowed_updates
         }).json()
 
     def __send(self, message_type):
         def sender(message):
-            return requests.post(self.__telegram_api.get(message_type).format(self.__token),
-                                 data=message)
+            return requests.post(self.__telegram_api.get(message_type).format(self.__token), data=message)
         return sender
 
     def send_message(self, message, chat_id, parse_mode=None, reply_id=None, disable_web_page_preview=True, keyboard=None):
@@ -179,130 +201,3 @@ class Bot:
             error_msg = {'chat': msg['chat'], 'text': 'Извините, я не понял Ваше сообщение', 'from': None}
             message = Bot.__get_message(error_msg)
         return message
-
-
-
-
-
-
-
-
-
-# # Словарь ресурсов
-# __resources = {'plati.ru': Plati, 'yuplay.ru': YuPlay}
-# # Ресурс для поиска игры (по умолчанию - Плати.ру)
-# resource = Plati()
-# # Активная команда для бота
-# active_command = None
-# # Структура данных команды для бота
-# Command = namedtuple('Command', ['name', 'command', 'keyboard', 'user_input'])
-#
-#
-#
-# def change_resource_option_command(option):
-#     print(option)
-#     resource_option = resource.get_options()[option]
-#     print(resource_option)
-#     return "Укажите значение опции: ..."
-#
-
-#
-# def change_resource_command(msg):
-#     global resource
-#     global active_command
-#     if not is_callback(msg):
-#         # Отправить пользователю клавиатуру, чтобы получить от него колбэк-параметр
-#         send_message('Текущий ресурс: {}. Выберите ресурс'.format(resource.resource_name),
-#                      msg.chat['id'],
-#                      keyboard=active_command.keyboard(active_command.name))
-#     else:
-#         # обработать информацию из колбэк-параметров
-#         data = json.loads(msg.data)
-#         resource_name = data['command_value']
-#         resource = get_resource(resource_name)
-#         send_message('Ресурс успешно изменен! Текущий русурс: {}'.format(resource.resource_name),
-#                        msg.message['chat']['id'])
-#         active_command = False
-#
-# def get_keyboard(command_name):
-#     """
-#     Словарь инлайн-клавиатур соответсвующих каждой комманде
-#     :param command_name:
-#     :return:
-#     """
-#     keyboards = {
-#         'resource' :
-#             [
-#                 [{
-#                     'text': name,                # отображаемое название кнопки на инлайн-клавиатуре
-#                     'callback_data': json.dumps( # строка данных, которые передаются в теле ответа после нажатия кнопки
-#                         {'command_name': command_name, 'command_value': name})
-#                 }] for name in __resources ],    # Клавиатура состоит из списка списков кнопок
-#         'options': [[{'text': option, 'callback_data': json.dumps({
-#             'command_name': command_name, 'command_value': option
-#         })}] for option in resource.get_options()]
-#     }
-#     return keyboards.get(command_name)
-#
-# def get_help_command(params=None):
-#     return 'Помогаю всем!'
-#
-# def info():
-#     return requests.get(__telegram_api.get('INFO').format(__token)).json()
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# def execute(msg):
-#     global active_command
-#     if is_command(msg): active_command = get_command(msg.text)
-#     try:
-#         active_command.command(msg)
-#     except AttributeError as e:
-#         print(e)
-#     #     if active_command.keyboard:
-#     #         # Отправить пользователю клавиатуру для получения параметров выполнения команды
-#     #         send_message(active_command.message, msg.chat['id'], keyboard=active_command.keyboard(active_command.name))
-#     #     else:
-#     #         # Отправить пользователю результат выполнения команды
-#     #         send_message(active_command.command(msg), msg.chat['id'])
-#     #         # Если ввод данных от пользователя не требутся отключить активную команду
-#     #         if not active_command.user_input: active_command = False
-#     # elif is_callback(msg):
-#     #     data = json.loads(msg.data)
-#     #     # Выполнить команду с использованием данных из инлайн-запроса
-#     #     message = active_command.command(data['command_value'])
-#     #     # Ответить пользователю уведомлением
-#     #     send_callback({'message': message, 'id': msg.id})
-#     # else:
-#     #     # Выполнить команду с ипользованием данных введенных пользователем и ответить пользователю сообщением
-#     #     send_message(active_command.command(msg), msg.chat['id'])
-#     #     # Выключить активную команду
-#     #     active_command = False
-#     # return True
-#
-#
-#
-#
-#
-#
-#
-#
-# # ПЕРЕМЕННЫЕ
-# # ===================================================================
-#
-#
-#
-#
-#
-# # Словарь команд
-# __commands = {
-#     '/resource': Command(name='resource', command=change_resource_command,keyboard=get_keyboard, user_input=False),
-#     '/help': Command(name='help', command=get_help_command, keyboard=get_keyboard, user_input=False),
-#     '/options': Command(name='options', command=change_resource_option_command, keyboard=get_keyboard, user_input=True)
-# }

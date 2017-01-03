@@ -16,6 +16,9 @@ class YuPlay(absResource):
         self.__current_page = 1
         self.__total_pages = 1
 
+    def get_options(self):
+        return {}
+
     def search(self, query):
         resources = []
         if self.games: self.games = []
@@ -64,9 +67,6 @@ class YuPlay(absResource):
         # (дальше, назад, первая, последнияя) << <| 1, 2, 3 |> >>
         self.total_pages = len(pagination[0].getchildren()) - 4 if pagination else 1
         return tree
-
-    def get_options(self):
-        return 'No options available'
 
     @property
     def page(self):
