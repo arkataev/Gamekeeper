@@ -8,7 +8,7 @@ from gamekeeper.bot.commands import (ChangeBotResourceCommand,
                                      GetHelpCommand)
 
 # Токен для бота в телеграмм
-token = open(os.getcwd() + '/gamekeeper/.env').readline().split('=')[1].strip()
+token = open(os.getcwd() + '/.env').readline().split('=')[1].strip()
 
 # Экземпляр бота
 bot = Bot(token, resources=[Plati, YuPlay], commands=[
