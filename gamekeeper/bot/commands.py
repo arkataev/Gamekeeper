@@ -3,19 +3,50 @@ from abc import ABCMeta, abstractmethod
 
 class BotCommand(metaclass=ABCMeta):
 
+    __keyboard = None
+    user_input = False
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    @property
+    @abstractmethod
+    def keyboard(self):
+       pass
+
+    @keyboard.setter
+    @abstractmethod
+    def keyboard(self, value):
+        pass
+
     @abstractmethod
     def execute(self, message):
         pass
 
 
+class BotStartCommand(BotCommand):
+
+    id = '/start'
+
+    def execute(self, message):
+        self.bot.send_message('Привет, {} !'.format(message.from_user['first_name']),
+                                     message.chat['id'])
+        self.bot.active_command = False
+
+    @property
+    def keyboard(self):
+        return
+
+    @keyboard.setter
+    def keyboard(self, value):
+        return
+
 class ChangeBotResourceCommand(BotCommand):
 
-    __keyboard = None
-    user_input = False
     id = '/resource'
 
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
         self.keyboard = [(r,v.resource_name) for r,v in bot.resources.items()]
 
     def execute(self, message):
@@ -30,6 +61,7 @@ class ChangeBotResourceCommand(BotCommand):
             self.bot.active_resource = message.data
             self.bot.send_message('Ресурс успешно изменен! Текущий русурс: {}'.format(self.bot.active_resource.resource_name),
                            message.message['chat']['id'])
+
             self.bot.active_command = False
 
     @property
@@ -44,12 +76,10 @@ class ChangeBotResourceCommand(BotCommand):
 class ChangeBotResourceOptionsCommand(BotCommand):
 
     id = '/options'
-    user_input = False
     active_option = None
-    __keyboard = None
 
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
         if getattr(bot.active_resource, 'get_options'):
             self.keyboard = [(id, option) for id, option in bot.active_resource.get_options().items()]
 
@@ -88,23 +118,32 @@ class GetHelpCommand(BotCommand):
 
     id = '/help'
 
-    def __init__(self, bot):
-        self.bot = bot
-
     def execute(self, message):
         self.bot.send_message('Опция временно недоступна!', message.chat['id'])
         self.bot.active_command = False
 
+    @property
+    def keyboard(self):
+        return
+
+    @keyboard.setter
+    def keyboard(self, value):
+        return
 
 class GetResourceNewsCommand(BotCommand):
 
     id = '/news'
 
-    def __init__(self, bot):
-        self.bot = bot
+    @property
+    def keyboard(self):
+        return
+
+    @keyboard.setter
+    def keyboard(self, value):
+        return
 
     def execute(self, message):
-        pass
+        return
 
 
 
