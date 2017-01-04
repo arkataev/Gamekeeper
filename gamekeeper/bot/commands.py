@@ -94,3 +94,17 @@ class GetHelpCommand(BotCommand):
     def execute(self, message):
         self.bot.send_message('Опция временно недоступна!', message.chat['id'])
         self.bot.active_command = False
+
+
+class GetResourceNewsCommand(BotCommand):
+
+    id = '/news'
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    def execute(self, message):
+        pass
+
+
+

@@ -7,8 +7,10 @@ from gamekeeper.bot.commands import (ChangeBotResourceCommand,
                                      ChangeBotResourceOptionsCommand,
                                      GetHelpCommand)
 
+# TODO:: Сохранять настройки бота в БД и использовать их для каждого пользовтеля индивидуально
+
 # Токен для бота в телеграмм
-token = open(os.getcwd() + '/.env').readline().split('=')[1].strip()
+token = open(os.getcwd() + '/gamekeeper/.env').readline().split('=')[1].strip()
 
 # Экземпляр бота
 bot = Bot(token, resources=[Plati, YuPlay], commands=[

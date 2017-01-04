@@ -1,6 +1,7 @@
 import requests
 import time
 import json
+import sqlite3
 from collections import namedtuple
 from gamekeeper.bot.commands import BotCommand
 
@@ -40,6 +41,7 @@ class Bot:
         self.__token = token
         # По умолчанию бот будет использовать первый ресурс в списке для поиска игры
         self.active_resource = resources[0].resource_name
+        print('A new Bot was created !')
 
     @property
     def active_resource(self):

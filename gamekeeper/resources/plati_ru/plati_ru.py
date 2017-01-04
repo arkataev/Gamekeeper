@@ -87,6 +87,7 @@ class Plati(absResource):
             info += "<b>{}</b>\n".format(seller['seller_name'])
             for game in seller['games']:
                 info += "<a href='{}' target='_blank'>{}</a> - {}руб.\n\t".format(game.link, game.name, game.price)
+            info += "\n"
         return info
 
     @staticmethod
