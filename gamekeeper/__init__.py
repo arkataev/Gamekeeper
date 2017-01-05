@@ -16,7 +16,7 @@ bot_resources = [Plati, YuPlay]
 
 def default_handler(msg):
     # TODO:: Ошибка при получении пустого результата поиск 'str' object has no attribute 'count_results'
-    print(msg)
+    if not msg: return
     try:
         if not msg.from_user:
             Bot.send_message(msg.text, msg.chat['id'])

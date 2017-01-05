@@ -7,7 +7,7 @@ from gamekeeper.bot.commands import BotCommand
 # Модель сообщения, с которой работает бот
 BotMessage = namedtuple('BotMessage', ('chat', 'text', 'from_user', 'entities', 'message_id', 'date',
                                          'sticker', 'photo', 'document', 'reply_to_message', 'id', 'chat_instance',
-                                         'message', 'data', 'kind', 'update_id', 'voice', 'contact', 'command'))
+                                         'message', 'data', 'kind', 'update_id', 'voice', 'contact', 'bot_command'))
 
 class Bot:
     """
@@ -229,8 +229,9 @@ class Bot:
         bot_message['kind'] = update_kind
         bot_message['update_id'] = update_id
         # Определяем есть ли команда в обновлении
-        if bot_message.get('entities'):
-            bot_message['command'] = any([lambda: ent.get('type') == 'bot_command' for ent in bot_message['entities']])
+        entities = bot_message.get('entities')
+        if entities:
+            for ent in entities: bot_message[ent['type']] = True
         # Создаем сообщение для бота
         try:
             return BotMessage(**bot_message)
