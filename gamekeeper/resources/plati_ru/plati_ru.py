@@ -1,8 +1,7 @@
 import requests
 import re
 from operator import attrgetter
-from gamekeeper.resources.resource import absResource, Option
-from collections import namedtuple
+from gamekeeper.resources.resource import absResource, Option, Game
 
 class Plati(absResource):
 
@@ -21,8 +20,6 @@ class Plati(absResource):
         if not found_games:
             return 'Ничего найти не удалось:('
 
-        # Модель записи игры для удобного хранения
-        Game = namedtuple("Game", ('name', 'link', 'price'))
         # Паттерн на поиск товара по ключевом слову
         regex_search = self.__key_words(query)
         # Паттерн на исключение товара из поиска
@@ -44,6 +41,10 @@ class Plati(absResource):
         # Сортируем продавцов в общем списке по цене самой дешевой игры имеющейся у продавца
         self.sellers.sort(key=lambda seller: seller['games'][0].price)
         return self
+
+    def count_results(self):
+        counter = map(lambda seller: len(seller['games']), self.sellers)
+        return sum(counter)
 
     def __filter_sellers(self, rules, sellers):
         """
@@ -86,8 +87,8 @@ class Plati(absResource):
         for seller in self.sellers:
             info += "<b>{}</b>\n".format(seller['seller_name'])
             for game in seller['games']:
-                info += "<a href='{}' target='_blank'>{}</a> - {}руб.\n\t".format(game.link, game.name, game.price)
-            info += "\n"
+                info += "<a href='{}' target='_blank'>{}</a> - {}руб.\n".format(game.link, game.name, game.price)
+            info += "\t\n"
         return info
 
     @staticmethod

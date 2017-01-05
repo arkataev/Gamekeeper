@@ -21,19 +21,27 @@ def default_handler(msg):
         else:
             user_id = msg.from_user['id']
             bot = Bot.create(user_id, resources=bot_resources, commands=bot_commands)
-            if Bot.is_command(msg) or Bot.is_callback(msg) or bot.active_command: return bot.execute(msg)
-            start_time = time.time()
-            Bot.send_message('<i>Сейчас посмотрим...</i>', msg.chat['id'], parse_mode='HTML')
-            result = str(bot.active_resource.search(msg.text))
-            if len(result) > 5000:
-                for chunk in Bot.chunk_string(result):
-                    Bot.send_message(chunk, msg.chat['id'], parse_mode='HTML')
-            else:
-                Bot.send_message(result, msg.chat['id'], parse_mode='HTML')
-            print("--- Result length: {} Searched for: {:.2} seconds ---".format(len(result),
-                                                                                 float(time.time() - start_time)))
+            if Bot.is_command(msg) or bot.active_command: return bot.execute(msg)
+            if not Bot.is_callback(msg):
+                start_time = time.time()
+                Bot.send_message('<i>Сейчас посмотрим...</i>', bot.id, parse_mode='HTML')
+                result = bot.active_resource.search(msg.text)
+                if len(str(result)) > 5000:
+                    for chunk in Bot.chunk_string(str(result)):
+                        Bot.send_message(chunk, bot.id, parse_mode='HTML')
+                else:
+                    Bot.send_message(str(result), bot.id, parse_mode='HTML')
+                print("{:*^30}\n"
+                      "Bot id: {.id}\n"
+                      "Query: {.text}\n"
+                      "Resource: {.resource_name}\n"
+                      "Message length: {} \n"
+                      "Found: {} items \n"
+                      "Time: {:.2} sec.".format(" Search result ",bot, msg, bot.active_resource,
+                                                len(str(result)), result.count_results(),
+                                                float(time.time() - start_time)))
     except BaseException as e:
         print(e)
-        return Bot.send_message('Ой! Что-то пошло не так', msg.chat['id'])
+        return Bot.send_message('Ой! Что-то пошло не так', bot.id)
 
 Bot.run(default_handler)

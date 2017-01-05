@@ -1,10 +1,9 @@
 from lxml import html
 import requests
 import re
-
-from collections import namedtuple
 from urllib.parse import urlencode
-from gamekeeper.resources.resource import absResource
+from gamekeeper.resources.resource import absResource, Game
+
 
 class YuPlay(absResource):
 
@@ -41,7 +40,6 @@ class YuPlay(absResource):
         return self
 
     def __collect_games(self, games_list):
-        Game = namedtuple("Game", ('name', 'link', 'price'))
         clean_price = re.compile(r"\d+\s\d+|\d+")
         return [Game(
             name=child.xpath('a')[0].find('span').text.strip(),
@@ -49,8 +47,8 @@ class YuPlay(absResource):
             price=clean_price.findall(child.find_class('price')[0].text_content()))
          for child in games_list.getchildren()]
 
-    def show_actions(self):
-        return 'No actions available'
+    def count_results(self):
+        return sum(map(lambda page: len(page),self.games))
 
     def __get_data(self, query, page):
         suffix = '/products/search/'
@@ -102,5 +100,6 @@ class YuPlay(absResource):
                     price = game.price[0].split()[1]
                 except IndexError:
                     price = game.price[0]
-                info+= "<a href='{}' target='_blank'>{}</a> - {}руб.\n\t".format(game.link, game.name, price)
+                info+= "<a href='{}' target='_blank'>{}</a> - {}руб.\n".format(game.link, game.name, price)
+        info += "\t"
         return info
