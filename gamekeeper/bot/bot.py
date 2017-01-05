@@ -3,7 +3,11 @@ import time
 import json
 from collections import namedtuple, OrderedDict
 from gamekeeper.bot.commands import BotCommand
-   
+
+# Модель сообщения, с которой работает бот
+BotMessage = namedtuple('BotMessage', ('chat', 'text', 'from_user', 'entities', 'message_id', 'date',
+                                         'sticker', 'photo', 'document', 'reply_to_message', 'id', 'chat_instance',
+                                         'message', 'data', 'kind', 'update_id', 'voice', 'contact', 'command'))
 
 class Bot:
     """
@@ -175,9 +179,10 @@ class Bot:
         last_update_id = None
         while True:
             try:
-                updates = Bot.update(offset=last_update_id)['result'][0]
+                updates = Bot.update(offset=last_update_id,
+                                     allowed_updates=['message', 'edited_message', 'callback_query'])['result'][0]
                 last_update_id = updates['update_id'] + 1
-                message = Bot.define_update_type(updates)
+                message = Bot._get_message(updates)
                 handler(message) if handler else print(updates)
             except IndexError:
                 continue
@@ -204,23 +209,30 @@ class Bot:
         return getattr(msg, 'chat_instance', False)
 
     @staticmethod
-    def _get_message(msg: dict) -> namedtuple:
-        # TODO:: Добавить поле message_type, где указывать тип сообщения: callback, text, command
+    def _get_message(update: dict) -> BotMessage or False:
         """
-        Принимает объект сообщения и парсит его на составляющие
-        Возращает именованный картеж
-        :param msg:
-        :return:
+        Создает модель сообщения для использования ботом
+        https://core.telegram.org/bots/api#update
+        :param update:
+        :type update: dict
+        :return: namedtuple or bool
         """
-        message_fields = ('chat', 'text', 'from_user', 'entities', 'message_id', 'date', 'sticker', 'photo', 'document',
-                          'reply_to_message', 'id', 'chat_instance', 'message', 'data')
-        Message = namedtuple('Message', message_fields)
-        for field in message_fields: msg.setdefault(field, None)
+        bot_message = dict.fromkeys(BotMessage._fields)
+        # update_id - обязательный элемент в обновлении
+        update_id = update.pop('update_id')
+        # кроме update_id в обновлении может находиться не более одного дополнительного элемента
+        update_kind, update_body = update.popitem()
+        bot_message.update(update_body)
+        # Нельзя использовать 'from' в качестве названия поля namedtuple поэтому заменяем
+        bot_message['from_user'] = bot_message.pop('from')
+        # Добавляем тип сообщения и идентификатор обновления
+        bot_message['kind'] = update_kind
+        bot_message['update_id'] = update_id
+        # Определяем есть ли команда в обновлении
+        if bot_message.get('entities'):
+            bot_message['command'] = any([lambda: ent.get('type') == 'bot_command' for ent in bot_message['entities']])
+        # Создаем сообщение для бота
         try:
-            msg['from_user'] = msg['from']  # Нельзя использовать 'from' в качестве названия поля
-            del msg['from']
-            message = Message(**msg)
+            return BotMessage(**bot_message)
         except TypeError:
-            error_msg = {'chat': msg['chat'], 'text': 'Извините, я не понял Ваше сообщение', 'from': None}
-            message = Bot._get_message(error_msg)
-        return message
+            return False
