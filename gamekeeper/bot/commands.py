@@ -3,21 +3,19 @@ from abc import ABCMeta, abstractmethod
 
 class BotCommand(metaclass=ABCMeta):
 
-    __keyboard = None
-    user_input = False
+    _keyboard = None
+    _user_input = False
 
     def __init__(self, bot):
         self.bot = bot
 
     @property
-    @abstractmethod
-    def keyboard(self):
-       pass
+    def user_input(self):
+        return self._user_input
 
-    @keyboard.setter
-    @abstractmethod
-    def keyboard(self, value):
-        pass
+    @property
+    def keyboard(self):
+       return self._keyboard
 
     @abstractmethod
     def execute(self, message):
@@ -33,13 +31,6 @@ class BotStartCommand(BotCommand):
                                      message.chat['id'])
         self.bot.active_command = False
 
-    @property
-    def keyboard(self):
-        return
-
-    @keyboard.setter
-    def keyboard(self, value):
-        return
 
 class ChangeBotResourceCommand(BotCommand):
 
@@ -50,27 +41,22 @@ class ChangeBotResourceCommand(BotCommand):
         self.keyboard = [(r,v.resource_name) for r,v in bot.resources.items()]
 
     def execute(self, message):
-        print('Executing command {}'.format(self.id))
         if not self.bot.is_callback(message):
             # Отправить пользователю клавиатуру, чтобы получить от него колбэк-параметр
             self.bot.send_message('Текущий ресурс: {}. Выберите ресурс'.format(self.bot.active_resource.resource_name),
-                         message.chat['id'],
+                         self.bot.id,
                          keyboard=self.keyboard)
         else:
             # обработать информацию из колбэк-параметров
             self.bot.active_resource = message.data
             self.bot.send_message('Ресурс успешно изменен! Текущий русурс: {}'.format(self.bot.active_resource.resource_name),
-                           message.message['chat']['id'])
+                                  self.bot.id)
 
             self.bot.active_command = False
 
-    @property
-    def keyboard(self):
-        return self.__keyboard
-
-    @keyboard.setter
+    @BotCommand.keyboard.setter
     def keyboard(self, keys_data):
-        self.__keyboard = [[{'text': key[0], 'callback_data': key[1]}] for key in keys_data]
+        self._keyboard = [[{'text': key[0], 'callback_data': key[1]}] for key in keys_data]
 
 
 class ChangeBotResourceOptionsCommand(BotCommand):
@@ -83,35 +69,35 @@ class ChangeBotResourceOptionsCommand(BotCommand):
         if getattr(bot.active_resource, 'get_options'):
             self.keyboard = [(id, option) for id, option in bot.active_resource.get_options().items()]
 
-    @property
-    def keyboard(self):
-        return self.__keyboard
-
-    @keyboard.setter
+    @BotCommand.keyboard.setter
     def keyboard(self, keys_data):
-        self.__keyboard = [[{'text': key[1].name, 'callback_data': key[0]}] for key in keys_data]
+        self._keyboard = [[{'text': key[1].name, 'callback_data': key[0]}] for key in keys_data]
+
+    @BotCommand.user_input.setter
+    def user_input(self, value):
+        self._user_input = value
 
     def execute(self, message):
         if len(self.bot.active_resource.get_options()):
             if not self.bot.is_callback(message):
                 if not self.user_input:
                     # Отправить пользователю клавиатуру, чтобы получить от него колбэк-параметр
-                    self.bot.send_message('Выберите опцию: ', message.chat['id'],keyboard=self.keyboard)
+                    self.bot.send_message('Выберите опцию: ', self.bot.id, keyboard=self.keyboard)
                 else:
                     try:
                         self.active_option.value(message.text)
                     except AssertionError as e:
-                        return self.bot.send_message(str(e), message.chat['id'])
-                    self.bot.send_message('Опция успешно изменена!', message.chat['id'])
+                        return self.bot.send_message(str(e), self.bot.id)
+                    self.bot.send_message('Опция успешно изменена!', self.bot.id)
                     self.bot.active_command = False
             else:
                 # обработать информацию из колбэк-параметров
                 self.active_option = self.bot.active_resource.get_options()[message.data]
-                self.bot.send_message(self.active_option.message, message.message['chat']['id'])
+                self.bot.send_message(self.active_option.message, self.bot.id)
                 self.user_input = True
         else:
             self.bot.active_command = False
-            self.bot.send_message('Для этого ресурса нет доступных опций', message.chat['id'])
+            self.bot.send_message('Для этого ресурса нет доступных опций', self.bot.id)
 
 
 class GetHelpCommand(BotCommand):
@@ -119,28 +105,13 @@ class GetHelpCommand(BotCommand):
     id = '/help'
 
     def execute(self, message):
-        self.bot.send_message('Опция временно недоступна!', message.chat['id'])
+        self.bot.send_message('Опция временно недоступна!', self.bot.id)
         self.bot.active_command = False
 
-    @property
-    def keyboard(self):
-        return
-
-    @keyboard.setter
-    def keyboard(self, value):
-        return
 
 class GetResourceNewsCommand(BotCommand):
 
     id = '/news'
-
-    @property
-    def keyboard(self):
-        return
-
-    @keyboard.setter
-    def keyboard(self, value):
-        return
 
     def execute(self, message):
         return

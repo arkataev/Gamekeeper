@@ -15,14 +15,18 @@ bot_commands = [ChangeBotResourceCommand,
 bot_resources = [Plati, YuPlay]
 
 def default_handler(msg):
+    # TODO:: Обработку сообщений нужно сделать Стратегией в зависимости от типа сообщения
     try:
         if not msg.from_user:
             Bot.send_message(msg.text, msg.chat['id'])
         else:
             user_id = msg.from_user['id']
             bot = Bot.create(user_id, resources=bot_resources, commands=bot_commands)
-            if Bot.is_command(msg) or bot.active_command: return bot.execute(msg)
-            if not Bot.is_callback(msg):
+            if Bot.is_command(msg):
+                return bot.execute(msg)
+            elif bot.active_command:
+                return bot.resume_command(msg)
+            elif not Bot.is_callback(msg):
                 start_time = time.time()
                 Bot.send_message('<i>Сейчас посмотрим...</i>', bot.id, parse_mode='HTML')
                 result = bot.active_resource.search(msg.text)
@@ -37,7 +41,7 @@ def default_handler(msg):
                       "Resource: {.resource_name}\n"
                       "Message length: {} \n"
                       "Found: {} items \n"
-                      "Time: {:.2} sec.".format(" Search result ",bot, msg, bot.active_resource,
+                      "Time: {:.2} sec.".format(" Search result ", bot, msg, bot.active_resource,
                                                 len(str(result)), result.count_results(),
                                                 float(time.time() - start_time)))
     except BaseException as e:

@@ -136,3 +136,5 @@ fabric.properties
 
 .gitignore
 .idea/
+/.idea/
+/.idea/inspectionProfiles/

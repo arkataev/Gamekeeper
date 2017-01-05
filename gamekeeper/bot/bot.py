@@ -3,6 +3,7 @@ import time
 import json
 from collections import namedtuple, OrderedDict
 from gamekeeper.bot.commands import BotCommand
+   
 
 class Bot:
     """
@@ -10,24 +11,24 @@ class Bot:
     доступных торговых площадках, а также может выполнять другие команды
     """
     # Доступные ресурсы для поиска игры
-    __resources = {}
+    _resources = {}
     # Активный ресурс
-    __active_resource = None
+    _active_resource = None
     # Активная комманда
-    __active_command = None
+    _active_command = None
     # Доступные команды бота
-    __commands = None
-    # токен бота
-    __token = '324178536:AAHMpH0ldMKHwlRvnffjifcoPNVPrNhmYvc'
+    _commands = None
     # Основные интерфейсы Телеграма
-    __telegram_api = {
+    _telegram_api = {
         'INFO': 'https://api.telegram.org/bot{}/getme',
         'UPDATES': 'https://api.telegram.org/bot{}/getUpdates',
         'MESSAGE': 'https://api.telegram.org/bot{}/sendMessage',
         'CALLBACK': 'https://api.telegram.org/bot{}/answerCallbackQuery'
     }
     # Коллекция созданных ботов
-    bot_que = OrderedDict()
+    _bot_que = OrderedDict()
+    # токен бота
+    __token = '324178536:AAHMpH0ldMKHwlRvnffjifcoPNVPrNhmYvc'
 
     def __init__(self, bot_id, resources:list, commands:list=None):
         """
@@ -40,31 +41,35 @@ class Bot:
         self.commands = commands
         # По умолчанию бот будет использовать первый ресурс в списке для поиска игры
         self.active_resource = resources[0].resource_name
-        self.id = bot_id
+        self.__id = bot_id
         # Активная команда, которая выполняется в данный момент
-        self.__active_command = None
+        self.active_command = None
         # Активный ресурс, где будет производится поиск игры
         print('A new Bot was created! Id: {}'.format(self.id))
 
     @property
+    def id(self):
+        return self.__id
+
+    @property
     def active_resource(self):
-        return self.__active_resource
+        return self._active_resource
 
     @property
     def resources(self):
-        return self.__resources
+        return self._resources
 
     @property
     def commands(self):
-        return self.__commands
+        return self._commands
 
     @property
     def active_command(self):
-        return self.__active_command
+        return self._active_command
 
     @commands.setter
     def commands(self, commands_list):
-        self.__commands = {command.id:command for command in commands_list if issubclass(command, BotCommand)}
+        self._commands = {command.id:command for command in commands_list if issubclass(command, BotCommand)}
 
     @resources.setter
     def resources(self, resources_list):
@@ -73,11 +78,11 @@ class Bot:
 
     @active_resource.setter
     def active_resource(self, resource_name):
-        self.__active_resource = self.get_resource(str(resource_name).lower())()
+        self._active_resource = self.get_resource(str(resource_name).lower())()
 
     @active_command.setter
     def active_command(self, command):
-        self.__active_command = command
+        self._active_command = command
 
     @classmethod
     def update(cls, offset:int=None, timeout=100, allowed_updates:list=None):
@@ -95,25 +100,26 @@ class Bot:
         :type allowed_updates: list
         :return:
         """
-        return requests.get(cls.__telegram_api.get('UPDATES').format(cls.__token), params={
+        return requests.get(cls._telegram_api.get('UPDATES').format(cls.__token), params={
             'offset': offset,
             'timeout': timeout,
             'allowed_updates': allowed_updates
         }).json()
 
+
     @classmethod
     def create(cls, bot_id, resources, commands):
-        bot = cls.bot_que.get(bot_id, None)
+        bot = cls._bot_que.get(bot_id, None)
         if not bot:
             bot = cls(bot_id, resources, commands)
-            if len(cls.bot_que) > 10: cls.bot_que.popitem(last=False)
-            cls.bot_que[bot_id] = bot
+            if len(cls._bot_que) > 10: cls._bot_que.popitem(last=False)
+            cls._bot_que[bot_id] = bot
         return bot
 
     @staticmethod
-    def __send(message_type):
+    def _send(message_type):
         def sender(message):
-            return requests.post(Bot.__telegram_api.get(message_type).format(Bot.__token), data=message)
+            return requests.post(Bot._telegram_api.get(message_type).format(Bot.__token), data=message)
         return sender
 
     @staticmethod
@@ -125,18 +131,17 @@ class Bot:
             'reply_to_message_id': reply_id,
             'disable_web_page_preview': disable_web_page_preview,
         }
-        sender = Bot.__send('MESSAGE')
-        if keyboard:
-            message['reply_markup'] = json.dumps({"inline_keyboard": keyboard})
+        sender = Bot._send('MESSAGE')
+        if keyboard: message['reply_markup'] = json.dumps({"inline_keyboard": keyboard})
         return sender(message)
 
     @staticmethod
-    def send_callback(answer):
+    def send_callback(answer:dict):
         message =  {
             'callback_query_id': answer['id'],
             'text': answer['message']
         }
-        sender = Bot.__send('CALLBACK')
+        sender = Bot._send('CALLBACK')
         return sender(message)
 
     def get_command(self, command_name):
@@ -156,13 +161,13 @@ class Bot:
         return self.resources.get(resource_name)
 
     def execute(self, message):
-        if Bot.is_command(message):
-            command = self.get_command(message.text)
-            self.active_command = command(self)
-        try:
-            self.active_command.execute(message)
-        except BaseException as e:
-            raise BaseException("Возникла ошибка во время выполнения команды. {}".format(e))
+        command = self.get_command(message.text)
+        self.active_command = command(self)
+        print('Executing command {}'.format(self.active_command.id))
+        self.active_command.execute(message)
+
+    def resume_command(self, message):
+        self.active_command.execute(message)
 
     @staticmethod
     def run(handler=None):
@@ -182,7 +187,7 @@ class Bot:
     def define_update_type(update):
         update_types = ['message', 'edited_message', 'callback_query']
         type = next(filter(update.get, update_types))  # определяет тип обновления
-        return Bot.__get_message(update[type])
+        return Bot._get_message(update[type])
 
     @staticmethod
     def is_command(msg):
@@ -199,7 +204,8 @@ class Bot:
         return getattr(msg, 'chat_instance', False)
 
     @staticmethod
-    def __get_message(msg: dict) -> namedtuple:
+    def _get_message(msg: dict) -> namedtuple:
+        # TODO:: Добавить поле message_type, где указывать тип сообщения: callback, text, command
         """
         Принимает объект сообщения и парсит его на составляющие
         Возращает именованный картеж
@@ -209,13 +215,12 @@ class Bot:
         message_fields = ('chat', 'text', 'from_user', 'entities', 'message_id', 'date', 'sticker', 'photo', 'document',
                           'reply_to_message', 'id', 'chat_instance', 'message', 'data')
         Message = namedtuple('Message', message_fields)
-        for field in message_fields:
-            if field not in msg: msg[field] = None
+        for field in message_fields: msg.setdefault(field, None)
         try:
             msg['from_user'] = msg['from']  # Нельзя использовать 'from' в качестве названия поля
             del msg['from']
             message = Message(**msg)
         except TypeError:
             error_msg = {'chat': msg['chat'], 'text': 'Извините, я не понял Ваше сообщение', 'from': None}
-            message = Bot.__get_message(error_msg)
+            message = Bot._get_message(error_msg)
         return message
