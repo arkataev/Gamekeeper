@@ -58,11 +58,12 @@ class Plati(absResource):
         f_sellers = filter(rules[0], sellers)
         return f_sellers if len(rules) == 1 else self.__filter_sellers(rules[1:], f_sellers)
 
-    def get_options(self):
-        return {
-            'set_rating': Option(name='Рейтинг продавца', value=lambda r: setattr(self, 'rating', r),
+    def get_options(self, option_name=None):
+        options = {
+            'set_rating': Option(name='Рейтинг продавца', value=lambda val: setattr(self, 'rating', val),
                                  message='Введите число от 0 до 1000')
         }
+        return options.get(option_name, options)
 
     def __get_sellers(self, query):
         page = items = 1

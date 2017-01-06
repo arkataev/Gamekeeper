@@ -27,8 +27,7 @@ class BotStartCommand(BotCommand):
     id = '/start'
 
     def execute(self, message):
-        self.bot.send_message('Привет, {} !'.format(message.from_user['first_name']),
-                                     message.chat['id'])
+        self.bot.send_message('Привет, {} !'.format(message.from_user['first_name']), message.chat['id'])
         self.bot.active_command = False
 
 

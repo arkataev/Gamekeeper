@@ -15,7 +15,7 @@ class YuPlay(absResource):
         self.__current_page = 1
         self.__total_pages = 1
 
-    def get_options(self):
+    def get_options(self, option_name=None):
         return {}
 
     def search(self, query):

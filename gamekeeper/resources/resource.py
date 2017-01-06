@@ -10,11 +10,11 @@ Game = namedtuple("Game", ('name', 'link', 'price'))
 class absResource(metaclass=ABCMeta):
 
     @abstractmethod
-    def search(self, query):
+    def search(self, query:str) -> object:
         pass
 
     @abstractmethod
-    def get_options(self) -> dict:
+    def get_options(self, option_name:str=None) -> Option or dict:
         pass
 
     @abstractmethod

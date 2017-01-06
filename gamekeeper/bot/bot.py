@@ -9,6 +9,13 @@ BotMessage = namedtuple('BotMessage', ('chat', 'text', 'from_user', 'entities', 
                                          'sticker', 'photo', 'document', 'reply_to_message', 'id', 'chat_instance',
                                          'message', 'data', 'kind', 'update_id', 'voice', 'contact', 'bot_command'))
 
+# Словарь фраз бота
+BotSpeak = {
+    'search': 'Сейчас посмотрим...',
+    'found_none': 'К сожалению ничего найти не удалось :(',
+    'greet': "Привет!"
+}
+
 class Bot:
     """
     Класс бота для Телеграмма. Бот по запросу пользователя ищет игры на
@@ -31,8 +38,10 @@ class Bot:
     }
     # Коллекция созданных ботов
     _bot_que = OrderedDict()
-    # токен бота
-    __token = '324178536:AAHMpH0ldMKHwlRvnffjifcoPNVPrNhmYvc'
+    # Лимит экземпляров бота в коллекции
+    bot_limit = None
+    # токен бота для доступа к API
+    token = None
 
     def __init__(self, bot_id, resources:list, commands:list=None):
         """
@@ -104,26 +113,25 @@ class Bot:
         :type allowed_updates: list
         :return:
         """
-        return requests.get(cls._telegram_api.get('UPDATES').format(cls.__token), params={
+        return requests.get(cls._telegram_api.get('UPDATES').format(cls.token), params={
             'offset': offset,
             'timeout': timeout,
             'allowed_updates': allowed_updates
         }).json()
-
 
     @classmethod
     def create(cls, bot_id, resources, commands):
         bot = cls._bot_que.get(bot_id, None)
         if not bot:
             bot = cls(bot_id, resources, commands)
-            if len(cls._bot_que) > 10: cls._bot_que.popitem(last=False)
+            if len(cls._bot_que) > int(cls.bot_limit): cls._bot_que.popitem(last=False)
             cls._bot_que[bot_id] = bot
         return bot
 
     @staticmethod
     def _send(message_type):
         def sender(message):
-            return requests.post(Bot._telegram_api.get(message_type).format(Bot.__token), data=message)
+            return requests.post(Bot._telegram_api.get(message_type).format(Bot.token), data=message)
         return sender
 
     @staticmethod
@@ -165,12 +173,14 @@ class Bot:
         return self.resources.get(resource_name)
 
     def execute(self, message):
+        if self.active_command: return self.active_command.execute(message)
         command = self.get_command(message.text)
         self.active_command = command(self)
         print('Executing command {}'.format(self.active_command.id))
         self.active_command.execute(message)
 
     def resume_command(self, message):
+        if not self.active_command: return
         self.active_command.execute(message)
 
     @staticmethod
@@ -187,17 +197,6 @@ class Bot:
             except IndexError:
                 continue
             time.sleep(0.5)
-
-    @staticmethod
-    def define_update_type(update):
-        update_types = ['message', 'edited_message', 'callback_query']
-        type = next(filter(update.get, update_types))  # определяет тип обновления
-        return Bot._get_message(update[type])
-
-    @staticmethod
-    def is_command(msg):
-        if msg.entities:
-            return next(filter(lambda entity: entity.get('type') == 'bot_command', msg.entities))
 
     @staticmethod
     def chunk_string(string):
@@ -228,7 +227,7 @@ class Bot:
         # Добавляем тип сообщения и идентификатор обновления
         bot_message['kind'] = update_kind
         bot_message['update_id'] = update_id
-        # Определяем есть ли команда в обновлении
+        # Определяем есть ли в обновлении специальные элементы
         entities = bot_message.get('entities')
         if entities:
             for ent in entities: bot_message[ent['type']] = True
