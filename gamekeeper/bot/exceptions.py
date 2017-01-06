@@ -1,0 +1,3 @@
+
+class BotCommandException(BaseException):
+    pass

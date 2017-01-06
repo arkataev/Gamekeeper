@@ -1,5 +1,4 @@
-import time
-from gamekeeper.bot.bot import Bot, BotMessage, BotSpeak
+from gamekeeper.bot.bot import Gamekeeper, BotMessage
 from gamekeeper.resources.plati_ru import Plati
 from gamekeeper.resources.yuplay import YuPlay
 from gamekeeper.bot.commands import (ChangeBotResourceCommand,
@@ -7,30 +6,37 @@ from gamekeeper.bot.commands import (ChangeBotResourceCommand,
                                      GetHelpCommand,
                                      BotStartCommand)
 
-bot_commands = [ChangeBotResourceCommand, ChangeBotResourceOptionsCommand, GetHelpCommand, BotStartCommand]
-bot_resources = [Plati, YuPlay]
+Gamekeeper.set_commands([ChangeBotResourceCommand, ChangeBotResourceOptionsCommand, GetHelpCommand, BotStartCommand])
+Gamekeeper.set_resources([Plati, YuPlay])
+Gamekeeper.set_vocabulary({
+    'search': 'Сейчас посмотрим...',
+    'found_none': 'К сожалению ничего найти не удалось :(',
+    'greet': "Привет!"
+})
 
 def default_message_handler(msg:BotMessage):
+    """
+    Стандартный собработчик сообщений для бота
+    :param msg:
+    :type msg: __namedtuple
+    :return:
+    """
     if not msg: return
-    bot = Bot.create(msg.from_user['id'], resources=bot_resources, commands=bot_commands)
-    if msg.bot_command or bot.active_command: return bot.execute(msg)
-    elif msg.kind == 'callback_query': return bot.resume_command(msg)
-    start_time = time.time()
-    # TODO:: Отсылать сообщения от экземпляра бота, а не от класса
-    Bot.send_message('<i>{}</i>'.format(BotSpeak['search']), bot.id, parse_mode='HTML')
-    result = bot.active_resource.search(msg.text)
-    count_results = result.count_results() if not isinstance(result,str) else 0
-    if len(str(result)) > 5000:
-        for chunk in Bot.chunk_string(str(result)):
-            Bot.send_message(chunk, bot.id, parse_mode='HTML')
-    else:
-        Bot.send_message(str(result), bot.id, parse_mode='HTML')
-    print("{:*^30}\n"
-          "Bot id: {.id}\n"
-          "Query: {.text}\n"
-          "Resource: {.resource_name}\n"
-          "Message length: {} \n"
-          "Found: {} items \n"
-          "Time: {:.2} sec.".format(" Search result ", bot, msg, bot.active_resource,
-                                    len(str(result)), count_results,
-                                    float(time.time() - start_time)))
+    # Для каждого пользователя создается индивидуальный экземпляр бота
+    # и помещается в очередь (Bot.bot_que)
+    bot = Gamekeeper.create(msg.from_user['id'])
+    # Обработка команд и связанных с ними сообщений
+    try:
+        if msg.bot_command or bot.active_command: return bot.execute(msg)
+        elif msg.kind == 'callback_query': return bot.resume_command(msg)
+    except BaseException as e:
+        print(e)
+        return
+    # Обработка поисковых запросов
+    result = bot.search(msg.text)
+    if len(result) > 5000:
+        # Телеграм не любит длинные сообщения поэтому лучше разбивать их на несколько меньших по размеру
+        # Размер 5000 взят произвольно
+        for chunk in Gamekeeper.chunk_string(result):
+            bot.send_message(chunk)
+    else: bot.send_message(result)

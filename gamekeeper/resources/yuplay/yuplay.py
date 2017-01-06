@@ -35,7 +35,7 @@ class YuPlay(absResource):
                 games_list = resource.body.find_class('games-box')[0]
             except IndexError:
                 # Ошибка если не удалось обнаружить блок с играми на странице результатов поиска
-                return 'Ничего найти не удалось:('
+                return
             self.games.append(self.__collect_games(games_list))
         return self
 

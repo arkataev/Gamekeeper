@@ -17,9 +17,7 @@ class Plati(absResource):
         if self.sellers: self.sellers = []
         # Результаты поиска
         found_games = self.__get_sellers(query)
-        if not found_games:
-            return 'Ничего найти не удалось:('
-
+        if not found_games: return
         # Паттерн на поиск товара по ключевом слову
         regex_search = self.__key_words(query)
         # Паттерн на исключение товара из поиска
