@@ -1,39 +1,32 @@
-from gamekeeper.bot.bot import Gamekeeper, BotMessage
+from gamekeeper.bot.bot import Gamekeeper, TelegramBot
 from gamekeeper.resources.plati_ru import Plati
 from gamekeeper.resources.yuplay import YuPlay
-from gamekeeper.bot.commands import (ChangeBotResourceCommand,
-                                     ChangeBotResourceOptionsCommand,
-                                     GetHelpCommand,
+from gamekeeper.bot.commands import (ChangeBotResourceCommand, ChangeBotResourceOptionsCommand, GetHelpCommand,
                                      BotStartCommand)
 
 Gamekeeper.set_commands([ChangeBotResourceCommand, ChangeBotResourceOptionsCommand, GetHelpCommand, BotStartCommand])
 Gamekeeper.set_resources([Plati, YuPlay])
-Gamekeeper.set_vocabulary({
+Gamekeeper.vocabulary = {
     'search': 'Сейчас посмотрим...',
     'found_none': 'К сожалению ничего найти не удалось :(',
     'greet': "Привет!"
-})
+}
 
-def default_message_handler(msg:BotMessage):
+def default_message_handler(bot_message):
     """
     Стандартный собработчик сообщений для бота
-    :param msg:
-    :type msg: __namedtuple
+    :param bot_message:
+    :type bot_message: namedtuple
     :return:
     """
-    if not msg: return
+    if not bot_message: return
     # Для каждого пользователя создается индивидуальный экземпляр бота
     # и помещается в очередь (Bot.bot_que)
-    bot = Gamekeeper.create(msg.from_user['id'])
+    bot = Gamekeeper.create(bot_message.from_user['id'])
     # Обработка команд и связанных с ними сообщений
-    try:
-        if msg.bot_command or bot.active_command: return bot.execute(msg)
-        elif msg.kind == 'callback_query': return bot.resume_command(msg)
-    except BaseException as e:
-        print(e)
-        return
+    if bot_message.bot_command or bot_message.callback or bot.active_command: return bot.execute(bot_message)
     # Обработка поисковых запросов
-    result = bot.search(msg.text)
+    result = bot.search(bot_message.text)
     if len(result) > 5000:
         # Телеграм не любит длинные сообщения поэтому лучше разбивать их на несколько меньших по размеру
         # Размер 5000 взят произвольно

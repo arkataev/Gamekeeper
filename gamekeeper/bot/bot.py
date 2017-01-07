@@ -7,9 +7,9 @@ from gamekeeper.bot.commands import BotCommand
 # Модель сообщения, с которой работает бот
 BotMessage = namedtuple('BotMessage', ('chat', 'text', 'from_user', 'entities', 'message_id', 'date',
                                          'sticker', 'photo', 'document', 'reply_to_message', 'id', 'chat_instance',
-                                         'message', 'data', 'kind', 'update_id', 'voice', 'contact', 'bot_command'))
+                                         'message', 'data', 'update_id', 'voice', 'contact', 'bot_command', 'callback'))
 
-class TelegramBot(object):
+class TelegramBot:
 
     # TODO:: Обработка ошибок
 
@@ -19,9 +19,9 @@ class TelegramBot(object):
     """
 
     # Активная комманда
-    _active_command = None
+    active_command = None
     # Доступные команды бота
-    _commands = None
+    commands = None
     # Основные интерфейсы Телеграма
     _telegram_api = {
         'INFO': 'https://api.telegram.org/bot{}/getme',
@@ -36,30 +36,14 @@ class TelegramBot(object):
     # токен бота для доступа к API
     token= None
     # Словарь фраз
-    _bot_speak = {}
-
-    @property
-    def id(self):
-        return self.__id
-
-    @property
-    def commands(self):
-        return self._commands
-
-    @property
-    def active_command(self):
-        return self._active_command
-
-    @active_command.setter
-    def active_command(self, command):
-        self._active_command = command
+    vocabulary = None
 
     def __init__(self, bot_id):
         """
         Бот принимает в качестве параметров список ресурсов и
         список команд
         """
-        self.__id = bot_id
+        self.id = bot_id
         print('A new Bot was created! Id: {}'.format(self.id))
 
     def send_message(self, message:str, parse_mode:str='HTML', reply_id:int=None, disable_web_page_preview:bool=True,
@@ -83,19 +67,14 @@ class TelegramBot(object):
         sender = self.__send('CALLBACK')
         return sender(message)
 
-    def execute(self, message):
-        if self.active_command: return self.active_command.execute(message)
-        command = self._get_command(message.text)
-        self.active_command = command(self)
-        print('Executing command {}'.format(self.active_command.id))
-        self.active_command.execute(message)
-
-    def resume_command(self, message):
-        if not self.active_command: return
-        self.active_command.execute(message)
+    def execute(self, bot_message):
+        if bot_message.bot_command:
+            command = self._get_command(bot_message.text)
+            self.active_command = command(self)
+        return self.active_command.execute(bot_message)
 
     def speak(self, key):
-        return self._bot_speak.get(key, None)
+        return self.vocabulary.get(key, None)
 
     def log_search(self, query, search_time, found, length):
         return ("{:*^30}\n"
@@ -105,10 +84,6 @@ class TelegramBot(object):
           "Message length: {} \n"
           "Found: {} items \n"
           "Time: {:.2} sec.").format(" Search Completed! ", self, query, self, length, found, search_time)
-
-    @classmethod
-    def set_vocabulary(cls, vocabulary):
-        cls._bot_speak = vocabulary
 
     @classmethod
     def run(cls,handler=None):
@@ -164,17 +139,12 @@ class TelegramBot(object):
 
     @classmethod
     def set_commands(cls, commands_list):
-        cls._commands = {command.id: command for command in commands_list if issubclass(command, BotCommand)}
+        cls.commands = {command.id: command for command in commands_list if issubclass(command, BotCommand)}
 
     @staticmethod
     def chunk_string(string):
         split_mark = string.index('\t', 5000)
         return string[:split_mark], string[split_mark:]
-
-    @staticmethod
-    def is_callback(msg):
-        # TODO:: убрать метод
-        return getattr(msg, 'chat_instance', False)
 
     @staticmethod
     def _get_message(update: dict) -> BotMessage or False:
@@ -194,12 +164,13 @@ class TelegramBot(object):
         # Нельзя использовать 'from' в качестве названия поля namedtuple поэтому заменяем
         bot_message['from_user'] = bot_message.pop('from')
         # Добавляем тип сообщения и идентификатор обновления
-        bot_message['kind'] = update_kind
+        # bot_message['kind'] = update_kind
         bot_message['update_id'] = update_id
         # Определяем есть ли в обновлении специальные элементы
         entities = bot_message.get('entities')
         if entities:
             for ent in entities: bot_message[ent['type']] = True
+        if update_kind == 'callback_query': bot_message['callback'] = True
         # Создаем сообщение для бота
         try:
             return BotMessage(**bot_message)
@@ -224,17 +195,13 @@ class TelegramBot(object):
 class Gamekeeper(TelegramBot):
 
     # Доступные ресурсы для поиска игры
-    __resources = {}
+    resources = {}
     # Активный ресурс
     __active_resource = None
 
     @property
     def active_resource(self):
         return self.__active_resource
-
-    @property
-    def resources(self):
-        return self.__resources
 
     @active_resource.setter
     def active_resource(self, resource_name):
@@ -260,9 +227,9 @@ class Gamekeeper(TelegramBot):
     @classmethod
     def set_resources(cls, resources_list):
         # По умолчанию бот будет использовать первый ресурс в списке для поиска игры
-        cls.__active_resource = resources_list[0]
+        cls.__active_resource = resources_list[0]()
         for resource in resources_list:
-            cls.__resources[resource.resource_name.lower()] = resource
+            cls.resources[resource.resource_name.lower()] = resource
 
     def __get_resource(self,resource_name:str) -> object or None:
         """
