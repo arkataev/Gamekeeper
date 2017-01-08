@@ -3,6 +3,8 @@ import time
 import json
 from collections import namedtuple, OrderedDict
 from gamekeeper.bot.commands import BotCommand
+from gamekeeper.bot.exceptions import BotException, BotCommandException
+
 
 # Модель сообщения, с которой работает бот
 BotMessage = namedtuple('BotMessage', ('chat', 'text', 'from_user', 'entities', 'message_id', 'date',
@@ -11,11 +13,8 @@ BotMessage = namedtuple('BotMessage', ('chat', 'text', 'from_user', 'entities', 
 
 class TelegramBot:
 
-    # TODO:: Обработка ошибок
-
     """
-    Класс бота для Телеграмма. Бот по запросу пользователя ищет игры на
-    доступных торговых площадках, а также может выполнять другие команды
+    Класс бота для Телеграмма.
     """
 
     # Активная комманда
@@ -48,6 +47,17 @@ class TelegramBot:
 
     def send_message(self, message:str, parse_mode:str='HTML', reply_id:int=None, disable_web_page_preview:bool=True,
                      keyboard:list=None):
+        """
+        Отправить сообщение пользователю
+        :param message:
+        :param parse_mode: Send Markdown or HTML, if you want Telegram apps to show bold, italic,
+        fixed-width text or inline URLs in your bot's message.
+        :param reply_id: If the message is a reply, ID of the original message
+        :param disable_web_page_preview: Disables link previews for links in this message
+        :param keyboard: Additional interface options. A JSON-serialized object for an inline keyboard,
+         custom reply keyboard, instructions to remove reply keyboard or to force a reply from the user.
+        :return:
+        """
         message = {
             'chat_id': self.id,
             'text': message,
@@ -68,10 +78,20 @@ class TelegramBot:
         return sender(message)
 
     def execute(self, bot_message):
-        if bot_message.bot_command:
-            command = self._get_command(bot_message.text)
-            self.active_command = command(self)
-        return self.active_command.execute(bot_message)
+        """
+        Выполнить команду
+        :param bot_message:
+        :return:
+        """
+        try:
+            if bot_message.bot_command:
+                command = self._get_command(bot_message.text)
+                self.active_command = command(self)
+            self.active_command.execute(bot_message)
+        except BotException as e:
+            print(e)
+        except:
+            raise BotCommandException(bot_message.text, "Ошибка выполнения команды")
 
     def speak(self, key):
         return self.vocabulary.get(key, None)
@@ -87,6 +107,14 @@ class TelegramBot:
 
     @classmethod
     def run(cls,handler=None):
+        """
+        Основной цикл работы бота.
+        Бот получает обновления сообщений от сервера Телеграм,
+        формирует из них сообщения и отправляет в обработчик сообщений переданный в качестве
+        параметра
+        :param handler: Функция - обработчик сообщений
+        :return:
+        """
         print('Listening...')
         last_update_id = None
         while True:
@@ -98,6 +126,10 @@ class TelegramBot:
                 handler(message) if handler else print(updates)
             except IndexError:
                 continue
+            except BotCommandException as e:
+                print("{}: {}".format(e, e.command))
+            except BotException as e:
+                print(e)
             time.sleep(0.5)
 
     @classmethod
@@ -116,11 +148,14 @@ class TelegramBot:
         :type allowed_updates: list
         :return:
         """
-        return requests.get(cls._telegram_api.get('UPDATES').format(cls.token), params={
+        updates = requests.get(cls._telegram_api.get('UPDATES').format(cls.token), params={
             'offset': offset,
             'timeout': timeout,
             'allowed_updates': allowed_updates
-        }).json()
+        })
+        if not updates: raise BotException('Не удалось получить обновления от сервера Телеграмм')
+        return updates.json()
+
 
     @classmethod
     def create(cls, bot_id:int, *args, **kwargs) -> object:
@@ -175,11 +210,12 @@ class TelegramBot:
         try:
             return BotMessage(**bot_message)
         except TypeError:
-            return False
+            raise BotException('Не удалось создать модель сообщения')
 
     def __send(self, message_type):
         def sender(message):
-            return requests.post(self._telegram_api.get(message_type).format(self.token), data=message)
+            sent_message = requests.post(self._telegram_api.get(message_type).format(self.token), data=message)
+            if not sent_message: raise BotException('Не удалось отправить сообщение пользователю')
         return sender
 
     def _get_command(self, command_name:str) -> object or None:
@@ -188,8 +224,9 @@ class TelegramBot:
         :param command_name:
         :return:
         """
-        return self.commands.get(command_name)
-
+        command = self.commands.get(command_name)
+        if not command: raise BotException("Комманда не найдена")
+        return command
 
 
 class Gamekeeper(TelegramBot):
@@ -237,4 +274,6 @@ class Gamekeeper(TelegramBot):
         :param resource_name:
         :return:
         """
-        return self.resources.get(resource_name)
+        resource =  self.resources.get(resource_name)
+        if not resource: raise BotException("Ресурс не найден")
+        return resource

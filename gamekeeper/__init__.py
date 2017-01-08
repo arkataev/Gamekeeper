@@ -1,6 +1,6 @@
 from gamekeeper.bot.bot import Gamekeeper, TelegramBot
-from gamekeeper.resources.plati_ru import Plati
-from gamekeeper.resources.yuplay import YuPlay
+from gamekeeper.resources.resource import Plati
+from gamekeeper.resources.resource import YuPlay
 from gamekeeper.bot.commands import (ChangeBotResourceCommand, ChangeBotResourceOptionsCommand, GetHelpCommand,
                                      BotStartCommand)
 

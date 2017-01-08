@@ -77,8 +77,9 @@ class ChangeBotResourceOptionsCommand(BotCommand):
         if not self.keyboard:
             self.bot.active_command = False
             return self.bot.send_message('Для этого ресурса нет доступных опций')
-        if not bot_message.callback:
-            if not self.user_input: return self.bot.send_message('Выберите опцию: ', keyboard=self.keyboard)
+        elif not bot_message.callback:
+            if not self.user_input:
+                return self.bot.send_message('Выберите опцию: ', keyboard=self.keyboard)
             try:
                 self.active_option.value(bot_message.text)
             except AssertionError as e:
