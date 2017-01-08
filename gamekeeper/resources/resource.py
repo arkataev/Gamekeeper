@@ -8,7 +8,7 @@ from operator import attrgetter
 
 
 # Шаблон для создания опции ресурса
-Option = namedtuple('Option', ['name', 'message', 'value'])
+Option = namedtuple('Option', ('name', 'message', 'value'))
 # Модель записи игры для удобного хранения
 Game = namedtuple("Game", ('name', 'link', 'price'))
 
